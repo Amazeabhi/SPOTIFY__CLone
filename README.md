@@ -1,9 +1,5 @@
 # 🎵 Spotify Clone - Full Stack Music Streaming App
 
-![GitHub stars](https://img.shields.io/github/stars/[Amazeabhi]/[harmony-hub]?style=for-the-badge&color=1DB954)
-![GitHub forks](https://img.shields.io/github/forks/[Amazeabhi]/[harmony-hub]?style=for-the-badge&color=1DB954)
-![License](https://img.shields.io/github/license/[Amazeabhi]/[harmony-hub]?style=for-the-badge&color=white)
-
 A feature-rich **Spotify Clone** designed to deliver a seamless music streaming experience. This project mimics the core functionality of Spotify, including audio playback, song uploads, and a fully responsive UI.
 
 [**Explore the Docs »**](https://github.com/[Amazeabhi]/[harmony-hub]) | [**View Demo »**](https://your-demo-link.vercel.app)
