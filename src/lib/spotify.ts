@@ -1,12 +1,6 @@
 // Spotify API Configuration
-// To use this app, you need to:
-// 1. Go to https://developer.spotify.com/dashboard
-// 2. Create a new application
-// 3. Add your redirect URI (e.g., http://localhost:5173/callback)
-// 4. Copy your Client ID and set it below
-
-const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
-const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${window.location.origin}/callback`;
+const CLIENT_ID = '8d96909a05274a2ba7125f32fd907f7e';
+const REDIRECT_URI = `${window.location.origin}/callback`;
 
 const SCOPES = [
   'user-read-private',
