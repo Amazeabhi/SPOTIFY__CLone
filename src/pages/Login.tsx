@@ -33,7 +33,7 @@ const Login = () => {
           <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center">
             <Music className="h-10 w-10 text-primary-foreground" />
           </div>
-          <h1 className="text-4xl font-bold text-foreground">Spotify Clone</h1>
+          <h1 className="text-4xl font-bold text-foreground">Spotifyness</h1>
           <p className="text-muted-foreground text-lg">
             Millions of songs. Free on Spotify.
           </p>
