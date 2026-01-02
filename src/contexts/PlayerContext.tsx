@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState, useRef } from 'react';
 import { SpotifyTrack } from '@/hooks/useSpotify';
 import { useSpotifyPlayer } from '@/hooks/useSpotifyPlayer';
 
@@ -35,29 +35,42 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [localQueue, setLocalQueue] = useState<SpotifyTrack[]>([]);
   const [localIndex, setLocalIndex] = useState(0);
   const [localTrack, setLocalTrack] = useState<SpotifyTrack | null>(null);
-
-  // Fallback audio for preview URLs when SDK not available
-  const [audioRef] = useState<HTMLAudioElement | null>(() => 
-    typeof window !== 'undefined' ? new Audio() : null
-  );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [previewState, setPreviewState] = useState({
     isPlaying: false,
     progress: 0,
     duration: 0,
+    volume: 0.5,
   });
 
-  const isPremiumPlayer = spotifyPlayer.isReady && spotifyPlayer.deviceId;
+  const isPremiumPlayer = !!(spotifyPlayer.isReady && spotifyPlayer.deviceId);
+
+  // Initialize audio element
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      audioRef.current = new Audio();
+      audioRef.current.volume = previewState.volume;
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // Setup audio element event listeners for preview fallback
   useEffect(() => {
-    if (!audioRef) return;
+    const audio = audioRef.current;
+    if (!audio) return;
 
     const handleTimeUpdate = () => {
-      setPreviewState(prev => ({ ...prev, progress: audioRef.currentTime }));
+      setPreviewState(prev => ({ ...prev, progress: audio.currentTime }));
     };
 
     const handleLoadedMetadata = () => {
-      setPreviewState(prev => ({ ...prev, duration: audioRef.duration }));
+      setPreviewState(prev => ({ ...prev, duration: audio.duration }));
     };
 
     const handleEnded = () => {
@@ -66,9 +79,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (localQueue.length > 0) {
         const nextIdx = (localIndex + 1) % localQueue.length;
         const nextTrack = localQueue[nextIdx];
-        if (nextTrack?.preview_url) {
-          audioRef.src = nextTrack.preview_url;
-          audioRef.play();
+        if (nextTrack?.preview_url && audio) {
+          audio.src = nextTrack.preview_url;
+          audio.play().catch(console.error);
           setLocalIndex(nextIdx);
           setLocalTrack(nextTrack);
           setPreviewState(prev => ({ ...prev, isPlaying: true }));
@@ -76,47 +89,62 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
-    audioRef.addEventListener('timeupdate', handleTimeUpdate);
-    audioRef.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audioRef.addEventListener('ended', handleEnded);
+    const handleError = (e: Event) => {
+      console.error('Audio playback error:', e);
+      setPreviewState(prev => ({ ...prev, isPlaying: false }));
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
 
     return () => {
-      audioRef.removeEventListener('timeupdate', handleTimeUpdate);
-      audioRef.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audioRef.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
     };
-  }, [audioRef, localQueue, localIndex]);
+  }, [localQueue, localIndex]);
 
   const playTrack = useCallback((track: SpotifyTrack, queue?: SpotifyTrack[]) => {
     if (queue) {
       setLocalQueue(queue);
-      setLocalIndex(queue.findIndex(t => t.id === track.id));
+      const idx = queue.findIndex(t => t.id === track.id);
+      setLocalIndex(idx >= 0 ? idx : 0);
     }
     setLocalTrack(track);
 
     if (isPremiumPlayer) {
       // Use Spotify SDK for Premium users
       spotifyPlayer.play(`spotify:track:${track.id}`);
-    } else if (track.preview_url && audioRef) {
+    } else if (track.preview_url && audioRef.current) {
       // Fallback to preview for non-Premium
-      audioRef.src = track.preview_url;
-      audioRef.play();
-      setPreviewState(prev => ({ ...prev, isPlaying: true, progress: 0 }));
+      audioRef.current.src = track.preview_url;
+      audioRef.current.play()
+        .then(() => {
+          setPreviewState(prev => ({ ...prev, isPlaying: true, progress: 0 }));
+        })
+        .catch(console.error);
     }
-  }, [isPremiumPlayer, spotifyPlayer, audioRef]);
+  }, [isPremiumPlayer, spotifyPlayer]);
 
   const togglePlay = useCallback(() => {
     if (isPremiumPlayer) {
       spotifyPlayer.togglePlay();
-    } else if (audioRef) {
+    } else if (audioRef.current) {
       if (previewState.isPlaying) {
-        audioRef.pause();
+        audioRef.current.pause();
+        setPreviewState(prev => ({ ...prev, isPlaying: false }));
       } else {
-        audioRef.play();
+        audioRef.current.play()
+          .then(() => {
+            setPreviewState(prev => ({ ...prev, isPlaying: true }));
+          })
+          .catch(console.error);
       }
-      setPreviewState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
     }
-  }, [isPremiumPlayer, spotifyPlayer, audioRef, previewState.isPlaying]);
+  }, [isPremiumPlayer, spotifyPlayer, previewState.isPlaying]);
 
   const handleNextTrack = useCallback(() => {
     if (isPremiumPlayer) {
@@ -139,19 +167,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const seek = useCallback((time: number) => {
     if (isPremiumPlayer) {
       spotifyPlayer.seek(time * 1000); // SDK uses milliseconds
-    } else if (audioRef) {
-      audioRef.currentTime = time;
+    } else if (audioRef.current) {
+      audioRef.current.currentTime = time;
       setPreviewState(prev => ({ ...prev, progress: time }));
     }
-  }, [isPremiumPlayer, spotifyPlayer, audioRef]);
+  }, [isPremiumPlayer, spotifyPlayer]);
 
   const handleSetVolume = useCallback((volume: number) => {
     if (isPremiumPlayer) {
       spotifyPlayer.setVolume(volume);
-    } else if (audioRef) {
-      audioRef.volume = volume;
+    } else if (audioRef.current) {
+      audioRef.current.volume = volume;
+      setPreviewState(prev => ({ ...prev, volume }));
     }
-  }, [isPremiumPlayer, spotifyPlayer, audioRef]);
+  }, [isPremiumPlayer, spotifyPlayer]);
 
   // Determine current state based on Premium or Preview
   const currentTrack = isPremiumPlayer ? spotifyPlayer.currentTrack : localTrack;
@@ -160,7 +189,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const duration = isPremiumPlayer 
     ? spotifyPlayer.duration / 1000 
     : (previewState.duration || 30);
-  const volume = isPremiumPlayer ? spotifyPlayer.volume : (audioRef?.volume || 0.5);
+  const volume = isPremiumPlayer ? spotifyPlayer.volume : previewState.volume;
 
   return (
     <PlayerContext.Provider
@@ -171,7 +200,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         duration,
         volume,
         isReady: spotifyPlayer.isReady,
-        isPremium: !!isPremiumPlayer,
+        isPremium: isPremiumPlayer,
         queue: localQueue,
         currentIndex: localIndex,
         playTrack,
