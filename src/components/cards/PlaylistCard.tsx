@@ -13,7 +13,7 @@ const PlaylistCard = ({ playlist }: PlaylistCardProps) => {
       className="group p-4 bg-card rounded-lg hover:bg-accent/50 transition-all duration-300"
     >
       <div className="relative mb-4">
-        {playlist.images[0] ? (
+        {playlist.images?.[0]?.url ? (
           <img
             src={playlist.images[0].url}
             alt={playlist.name}

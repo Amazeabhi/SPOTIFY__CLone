@@ -71,7 +71,7 @@ const Sidebar = () => {
               to={`/playlist/${playlist.id}`}
               className="flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors group"
             >
-              {playlist.images[0] ? (
+              {playlist.images?.[0]?.url ? (
                 <img
                   src={playlist.images[0].url}
                   alt={playlist.name}

@@ -13,7 +13,7 @@ const ArtistCard = ({ artist }: ArtistCardProps) => {
       className="group p-4 bg-card rounded-lg hover:bg-accent/50 transition-all duration-300"
     >
       <div className="relative mb-4">
-        {artist.images[0] ? (
+        {artist.images?.[0]?.url ? (
           <img
             src={artist.images[0].url}
             alt={artist.name}
