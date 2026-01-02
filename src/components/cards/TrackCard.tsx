@@ -68,8 +68,8 @@ const TrackCard = ({ track, index, queue, showAlbum = true, onRemove, showRemove
       <div className="flex items-center gap-3 min-w-0">
         {showAlbum && (
           <img
-            src={track.album.images[0]?.url || '/placeholder.svg'}
-            alt={track.album.name}
+            src={track.album?.images?.[0]?.url || '/placeholder.svg'}
+            alt={track.album?.name || 'Album'}
             className="w-10 h-10 rounded object-cover flex-shrink-0"
           />
         )}

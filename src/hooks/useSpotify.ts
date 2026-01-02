@@ -70,18 +70,9 @@ export const useFeaturedPlaylists = () => {
   return useQuery({
     queryKey: ['featuredPlaylists'],
     queryFn: async () => {
-      // Featured playlists endpoint is deprecated, use categories instead
-      try {
-        const categories = await spotifyApi('/browse/categories?limit=6');
-        if (categories?.categories?.items?.length > 0) {
-          const categoryId = categories.categories.items[0].id;
-          const categoryPlaylists = await spotifyApi(`/browse/categories/${categoryId}/playlists?limit=20`);
-          return categoryPlaylists;
-        }
-        return { playlists: { items: [] } };
-      } catch {
-        return { playlists: { items: [] } };
-      }
+      // Return empty - we'll rely on user playlists instead
+      // Featured playlists endpoint is deprecated by Spotify
+      return { playlists: { items: [] } };
     },
     enabled: isAuthenticated(),
     staleTime: 5 * 60 * 1000,
