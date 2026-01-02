@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { getValidAccessToken } from '@/lib/spotify';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { getValidAccessToken, isAuthenticated } from '@/lib/spotify';
 
 declare global {
   interface Window {
@@ -37,7 +37,7 @@ export interface PlayerState {
 }
 
 export const useSpotifyPlayer = () => {
-  const [player, setPlayer] = useState<SpotifyPlayer | null>(null);
+  const playerRef = useRef<SpotifyPlayer | null>(null);
   const [state, setState] = useState<PlayerState>({
     deviceId: null,
     isReady: false,
@@ -50,144 +50,192 @@ export const useSpotifyPlayer = () => {
   });
 
   useEffect(() => {
-    // Load Spotify SDK script
-    if (!document.getElementById('spotify-sdk')) {
-      const script = document.createElement('script');
-      script.id = 'spotify-sdk';
-      script.src = 'https://sdk.scdn.co/spotify-player.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    // Only initialize if authenticated
+    if (!isAuthenticated()) return;
 
-    window.onSpotifyWebPlaybackSDKReady = async () => {
-      const token = await getValidAccessToken();
-      if (!token) return;
+    let isMounted = true;
 
-      const spotifyPlayer = new window.Spotify.Player({
-        name: 'Spotify Clone Web Player',
-        getOAuthToken: async (cb: (token: string) => void) => {
-          const freshToken = await getValidAccessToken();
-          if (freshToken) cb(freshToken);
-        },
-        volume: 0.5,
-      });
-
-      spotifyPlayer.addListener('ready', ({ device_id }: { device_id: string }) => {
-        console.log('Ready with Device ID', device_id);
-        setState(prev => ({ ...prev, deviceId: device_id, isReady: true }));
-      });
-
-      spotifyPlayer.addListener('not_ready', ({ device_id }: { device_id: string }) => {
-        console.log('Device ID has gone offline', device_id);
-        setState(prev => ({ ...prev, isReady: false }));
-      });
-
-      spotifyPlayer.addListener('player_state_changed', (playerState: any) => {
-        if (!playerState) {
-          setState(prev => ({ ...prev, isActive: false }));
-          return;
+    const initializePlayer = async () => {
+      try {
+        // Load Spotify SDK script
+        if (!document.getElementById('spotify-sdk')) {
+          const script = document.createElement('script');
+          script.id = 'spotify-sdk';
+          script.src = 'https://sdk.scdn.co/spotify-player.js';
+          script.async = true;
+          document.body.appendChild(script);
         }
 
-        const currentTrack = playerState.track_window?.current_track;
-        
-        setState(prev => ({
-          ...prev,
-          isActive: true,
-          isPaused: playerState.paused,
-          currentTrack: currentTrack ? {
-            id: currentTrack.id,
-            name: currentTrack.name,
-            duration_ms: currentTrack.duration_ms,
-            album: {
-              id: currentTrack.album?.uri?.split(':')[2],
-              name: currentTrack.album?.name,
-              images: currentTrack.album?.images || [],
-            },
-            artists: currentTrack.artists?.map((a: any) => ({
-              id: a.uri?.split(':')[2],
-              name: a.name,
-            })) || [],
-          } : null,
-          position: playerState.position,
-          duration: currentTrack?.duration_ms || 0,
-        }));
-      });
+        window.onSpotifyWebPlaybackSDKReady = async () => {
+          if (!isMounted) return;
+          
+          const token = await getValidAccessToken();
+          if (!token || !isMounted) return;
 
-      spotifyPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
-        console.error('Failed to initialize:', message);
-      });
+          try {
+            const spotifyPlayer = new window.Spotify.Player({
+              name: 'Spotify Clone Web Player',
+              getOAuthToken: async (cb: (token: string) => void) => {
+                const freshToken = await getValidAccessToken();
+                if (freshToken) cb(freshToken);
+              },
+              volume: 0.5,
+            });
 
-      spotifyPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
-        console.error('Failed to authenticate:', message);
-      });
+            spotifyPlayer.addListener('ready', ({ device_id }: { device_id: string }) => {
+              if (!isMounted) return;
+              console.log('Ready with Device ID', device_id);
+              setState(prev => ({ ...prev, deviceId: device_id, isReady: true }));
+            });
 
-      spotifyPlayer.addListener('account_error', ({ message }: { message: string }) => {
-        console.error('Failed to validate Spotify account:', message);
-      });
+            spotifyPlayer.addListener('not_ready', ({ device_id }: { device_id: string }) => {
+              if (!isMounted) return;
+              console.log('Device ID has gone offline', device_id);
+              setState(prev => ({ ...prev, isReady: false }));
+            });
 
-      spotifyPlayer.connect();
-      setPlayer(spotifyPlayer);
+            spotifyPlayer.addListener('player_state_changed', (playerState: any) => {
+              if (!isMounted) return;
+              if (!playerState) {
+                setState(prev => ({ ...prev, isActive: false }));
+                return;
+              }
+
+              const currentTrack = playerState.track_window?.current_track;
+              
+              setState(prev => ({
+                ...prev,
+                isActive: true,
+                isPaused: playerState.paused,
+                currentTrack: currentTrack ? {
+                  id: currentTrack.id,
+                  name: currentTrack.name,
+                  duration_ms: currentTrack.duration_ms,
+                  album: {
+                    id: currentTrack.album?.uri?.split(':')[2],
+                    name: currentTrack.album?.name,
+                    images: currentTrack.album?.images || [],
+                  },
+                  artists: currentTrack.artists?.map((a: any) => ({
+                    id: a.uri?.split(':')[2],
+                    name: a.name,
+                  })) || [],
+                } : null,
+                position: playerState.position,
+                duration: currentTrack?.duration_ms || 0,
+              }));
+            });
+
+            spotifyPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
+              console.error('Failed to initialize:', message);
+            });
+
+            spotifyPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
+              console.error('Failed to authenticate:', message);
+            });
+
+            spotifyPlayer.addListener('account_error', ({ message }: { message: string }) => {
+              console.error('Failed to validate Spotify account:', message);
+            });
+
+            spotifyPlayer.connect();
+            playerRef.current = spotifyPlayer;
+          } catch (error) {
+            console.error('Error initializing Spotify player:', error);
+          }
+        };
+      } catch (error) {
+        console.error('Error loading Spotify SDK:', error);
+      }
     };
 
+    initializePlayer();
+
     return () => {
-      if (player) {
-        player.disconnect();
+      isMounted = false;
+      if (playerRef.current) {
+        playerRef.current.disconnect();
+        playerRef.current = null;
       }
     };
   }, []);
 
   const play = useCallback(async (uri: string, contextUri?: string) => {
-    const token = await getValidAccessToken();
-    if (!token || !state.deviceId) return;
+    try {
+      const token = await getValidAccessToken();
+      if (!token || !state.deviceId) return;
 
-    const body: any = {};
-    if (contextUri) {
-      body.context_uri = contextUri;
-      body.offset = { uri };
-    } else {
-      body.uris = [uri];
+      const body: any = {};
+      if (contextUri) {
+        body.context_uri = contextUri;
+        body.offset = { uri };
+      } else {
+        body.uris = [uri];
+      }
+
+      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${state.deviceId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      console.error('Error playing track:', error);
     }
-
-    await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${state.deviceId}`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
   }, [state.deviceId]);
 
   const togglePlay = useCallback(async () => {
-    if (player) {
-      await player.togglePlay();
+    try {
+      if (playerRef.current) {
+        await playerRef.current.togglePlay();
+      }
+    } catch (error) {
+      console.error('Error toggling play:', error);
     }
-  }, [player]);
+  }, []);
 
   const nextTrack = useCallback(async () => {
-    if (player) {
-      await player.nextTrack();
+    try {
+      if (playerRef.current) {
+        await playerRef.current.nextTrack();
+      }
+    } catch (error) {
+      console.error('Error skipping to next track:', error);
     }
-  }, [player]);
+  }, []);
 
   const previousTrack = useCallback(async () => {
-    if (player) {
-      await player.previousTrack();
+    try {
+      if (playerRef.current) {
+        await playerRef.current.previousTrack();
+      }
+    } catch (error) {
+      console.error('Error going to previous track:', error);
     }
-  }, [player]);
+  }, []);
 
   const seek = useCallback(async (position: number) => {
-    if (player) {
-      await player.seek(position);
+    try {
+      if (playerRef.current) {
+        await playerRef.current.seek(position);
+      }
+    } catch (error) {
+      console.error('Error seeking:', error);
     }
-  }, [player]);
+  }, []);
 
   const setVolume = useCallback(async (volume: number) => {
-    if (player) {
-      await player.setVolume(volume);
-      setState(prev => ({ ...prev, volume }));
+    try {
+      if (playerRef.current) {
+        await playerRef.current.setVolume(volume);
+        setState(prev => ({ ...prev, volume }));
+      }
+    } catch (error) {
+      console.error('Error setting volume:', error);
     }
-  }, [player]);
+  }, []);
 
   // Update position periodically
   useEffect(() => {

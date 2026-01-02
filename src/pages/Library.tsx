@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useUserPlaylists, useTopArtists, useCurrentUser } from '@/hooks/useSpotify';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PlaylistCard from '@/components/cards/PlaylistCard';
@@ -7,10 +6,10 @@ import CardGrid from '@/components/common/CardGrid';
 import CreatePlaylistDialog from '@/components/playlist/CreatePlaylistDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-import { Heart, Music, Plus } from 'lucide-react';
+import { Heart, Music } from 'lucide-react';
 
 const Library = () => {
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: playlistsData, isLoading: playlistsLoading } = useUserPlaylists();
   const { data: artistsData, isLoading: artistsLoading } = useTopArtists();
 
