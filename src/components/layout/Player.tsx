@@ -1,12 +1,13 @@
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, VolumeX, Maximize2, ListMusic, Mic2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, VolumeX, Maximize2, ListMusic, Mic2, Music } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 const formatTime = (seconds: number) => {
-  if (isNaN(seconds)) return '0:00';
+  if (isNaN(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -19,6 +20,8 @@ const Player = () => {
     progress,
     duration,
     volume,
+    isReady,
+    isPremium,
     togglePlay,
     nextTrack,
     previousTrack,
@@ -26,7 +29,7 @@ const Player = () => {
     setVolume,
   } = usePlayer();
 
-  const hasPreview = !!currentTrack?.preview_url;
+  const canPlay = currentTrack && (isPremium || currentTrack.preview_url);
 
   return (
     <footer className="h-20 bg-sidebar border-t border-border flex items-center px-4 gap-4">
@@ -35,8 +38,8 @@ const Player = () => {
         {currentTrack ? (
           <>
             <img
-              src={currentTrack.album.images[0]?.url || '/placeholder.svg'}
-              alt={currentTrack.album.name}
+              src={currentTrack.album?.images?.[0]?.url || '/placeholder.svg'}
+              alt={currentTrack.album?.name}
               className="h-14 w-14 rounded object-cover"
             />
             <div className="min-w-0">
@@ -44,7 +47,7 @@ const Player = () => {
                 {currentTrack.name}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {currentTrack.artists.map((a, i) => (
+                {currentTrack.artists?.map((a: any, i: number) => (
                   <span key={a.id}>
                     {i > 0 && ', '}
                     <Link
@@ -59,7 +62,14 @@ const Player = () => {
             </div>
           </>
         ) : (
-          <div className="h-14 w-14 rounded bg-accent" />
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-14 rounded bg-accent flex items-center justify-center">
+              <Music className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">No track selected</p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -74,17 +84,17 @@ const Player = () => {
             size="icon"
             onClick={previousTrack}
             disabled={!currentTrack}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
             <SkipBack className="h-5 w-5 fill-current" />
           </Button>
           <Button
             size="icon"
             onClick={togglePlay}
-            disabled={!hasPreview}
+            disabled={!canPlay}
             className={cn(
               'h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground hover:scale-105 transition-transform',
-              !hasPreview && 'opacity-50'
+              !canPlay && 'opacity-50 cursor-not-allowed'
             )}
           >
             {isPlaying ? (
@@ -98,7 +108,7 @@ const Player = () => {
             size="icon"
             onClick={nextTrack}
             disabled={!currentTrack}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
             <SkipForward className="h-5 w-5 fill-current" />
           </Button>
@@ -109,7 +119,7 @@ const Player = () => {
 
         {/* Progress Bar */}
         <div className="flex items-center gap-2 w-full">
-          <span className="text-xs text-muted-foreground w-10 text-right">
+          <span className="text-xs text-muted-foreground w-10 text-right tabular-nums">
             {formatTime(progress)}
           </span>
           <Slider
@@ -118,14 +128,27 @@ const Player = () => {
             step={0.1}
             onValueChange={([value]) => seek(value)}
             className="flex-1"
-            disabled={!hasPreview}
+            disabled={!canPlay}
           />
-          <span className="text-xs text-muted-foreground w-10">
-            {formatTime(duration || 30)}
+          <span className="text-xs text-muted-foreground w-10 tabular-nums">
+            {formatTime(duration)}
           </span>
         </div>
-        {!hasPreview && currentTrack && (
-          <p className="text-xs text-muted-foreground">Preview not available</p>
+
+        {/* Status indicator */}
+        {currentTrack && !isPremium && (
+          <div className="flex items-center gap-2">
+            {currentTrack.preview_url ? (
+              <span className="text-xs text-muted-foreground">30s preview</span>
+            ) : (
+              <span className="text-xs text-destructive">No preview available</span>
+            )}
+          </div>
+        )}
+        {isPremium && isReady && (
+          <Badge variant="secondary" className="text-xs bg-primary/20 text-primary border-0">
+            Premium Playback
+          </Badge>
         )}
       </div>
 
