@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { useUserPlaylists, useTopArtists } from '@/hooks/useSpotify';
+import { useUserPlaylists, useTopArtists, useCurrentUser } from '@/hooks/useSpotify';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PlaylistCard from '@/components/cards/PlaylistCard';
 import ArtistCard from '@/components/cards/ArtistCard';
 import CardGrid from '@/components/common/CardGrid';
+import CreatePlaylistDialog from '@/components/playlist/CreatePlaylistDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
-import { Heart, Music } from 'lucide-react';
+import { Heart, Music, Plus } from 'lucide-react';
 
 const Library = () => {
+  const { data: user } = useCurrentUser();
   const { data: playlistsData, isLoading: playlistsLoading } = useUserPlaylists();
   const { data: artistsData, isLoading: artistsLoading } = useTopArtists();
 
@@ -17,7 +19,10 @@ const Library = () => {
 
   return (
     <div className="pb-8">
-      <h1 className="text-3xl font-bold text-foreground mb-6">Your Library</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-foreground">Your Library</h1>
+        {user && <CreatePlaylistDialog userId={user.id} />}
+      </div>
 
       <Tabs defaultValue="playlists" className="w-full">
         <TabsList className="bg-transparent mb-6">
@@ -67,14 +72,19 @@ const Library = () => {
               ))}
             </CardGrid>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-12 bg-card/30 rounded-lg">
               <Music className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">
                 Create your first playlist
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 It's easy, we'll help you
               </p>
+              {user && (
+                <div className="flex justify-center">
+                  <CreatePlaylistDialog userId={user.id} />
+                </div>
+              )}
             </div>
           )}
         </TabsContent>

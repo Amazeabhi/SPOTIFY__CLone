@@ -1,14 +1,17 @@
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, MoreHorizontal } from 'lucide-react';
 import { SpotifyTrack } from '@/hooks/useSpotify';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import AddToPlaylistMenu from '@/components/playlist/AddToPlaylistMenu';
 
 interface TrackCardProps {
   track: SpotifyTrack;
   index?: number;
   queue?: SpotifyTrack[];
   showAlbum?: boolean;
+  onRemove?: () => void;
+  showRemove?: boolean;
 }
 
 const formatDuration = (ms: number) => {
@@ -17,7 +20,7 @@ const formatDuration = (ms: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const TrackCard = ({ track, index, queue, showAlbum = true }: TrackCardProps) => {
+const TrackCard = ({ track, index, queue, showAlbum = true, onRemove, showRemove = false }: TrackCardProps) => {
   const { currentTrack, isPlaying, playTrack, togglePlay } = usePlayer();
   const isCurrentTrack = currentTrack?.id === track.id;
 
@@ -32,7 +35,7 @@ const TrackCard = ({ track, index, queue, showAlbum = true }: TrackCardProps) =>
   return (
     <div
       className={cn(
-        'group grid grid-cols-[16px_4fr_2fr_minmax(120px,1fr)] md:grid-cols-[16px_4fr_3fr_minmax(120px,1fr)] gap-4 items-center px-4 py-2 rounded-md hover:bg-accent/50 transition-colors',
+        'group grid grid-cols-[16px_4fr_2fr_auto_minmax(80px,1fr)] md:grid-cols-[16px_4fr_3fr_auto_minmax(80px,1fr)] gap-4 items-center px-4 py-2 rounded-md hover:bg-accent/50 transition-colors',
         isCurrentTrack && 'bg-accent/30'
       )}
     >
@@ -103,6 +106,11 @@ const TrackCard = ({ track, index, queue, showAlbum = true }: TrackCardProps) =>
         >
           {track.album.name}
         </Link>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center">
+        <AddToPlaylistMenu track={track} onRemove={onRemove} showRemove={showRemove} />
       </div>
 
       {/* Duration */}
