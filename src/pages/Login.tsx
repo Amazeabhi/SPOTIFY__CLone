@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 const Login = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const redirectUri = `${window.location.origin}/callback`;
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -21,7 +22,7 @@ const Login = () => {
       await redirectToSpotifyAuth();
     } catch (error) {
       setIsLoading(false);
-      toast.error('Failed to connect to Spotify. Please check your configuration.');
+      toast.error('Failed to connect to Spotify. Please try again.');
     }
   };
 
@@ -48,22 +49,32 @@ const Login = () => {
           {isLoading ? 'Connecting...' : 'Log in with Spotify'}
         </Button>
 
-        {/* Setup Instructions */}
-        <div className="bg-card/50 rounded-lg p-6 text-left space-y-4">
-          <h2 className="font-semibold text-foreground">Setup Instructions</h2>
-          <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-            <li>Go to the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Spotify Developer Dashboard</a></li>
-            <li>Create a new application</li>
-            <li>Add <code className="bg-accent px-1 rounded">{window.location.origin}/callback</code> as a Redirect URI</li>
-            <li>Copy your Client ID</li>
-            <li>Create a <code className="bg-accent px-1 rounded">.env</code> file with:
-              <pre className="bg-accent p-2 rounded mt-2 overflow-x-auto">
-{`VITE_SPOTIFY_CLIENT_ID=your_client_id
-VITE_SPOTIFY_REDIRECT_URI=${window.location.origin}/callback`}
-              </pre>
-            </li>
-            <li>Restart the development server</li>
-          </ol>
+        {/* Important Notice */}
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-left">
+          <p className="text-sm text-destructive font-medium mb-2">⚠️ Important: Open in new tab</p>
+          <p className="text-xs text-muted-foreground">
+            Click the <strong>↗ external link icon</strong> at the top-right of the preview to open in a new browser tab. OAuth won't work inside the iframe.
+          </p>
+        </div>
+
+        {/* Redirect URI Info */}
+        <div className="bg-card/50 rounded-lg p-4 text-left space-y-3">
+          <h2 className="font-semibold text-foreground">Redirect URI for Spotify Dashboard:</h2>
+          <code className="block bg-accent p-3 rounded text-xs break-all text-primary">
+            {redirectUri}
+          </code>
+          <p className="text-xs text-muted-foreground">
+            Make sure this exact URI is added in your{' '}
+            <a 
+              href="https://developer.spotify.com/dashboard" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-primary hover:underline"
+            >
+              Spotify Developer Dashboard
+            </a>
+            {' '}→ Your App → Settings → Redirect URIs
+          </p>
         </div>
 
         <p className="text-xs text-muted-foreground">
